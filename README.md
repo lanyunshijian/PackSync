@@ -6,7 +6,23 @@
 - 适配：Minecraft **1.20.1** / Forge **47.x**
 - 作者：**蓝韵诗笺**
 - 许可：MIT
-- 构建产物：`build/libs/packsync-1.0.0.jar`（单文件，客户端与服务端通用）
+
+---
+
+## 下载
+
+**https://github.com/lanyunshijian/PackSync/releases/latest**
+
+下载 `packsync-x.y.z.zip` 并解压，里面就是 `packsync-1.0.0.jar`（客户端与服务端通用），
+丢进 `mods/` 目录即可。
+
+也可以直接用 Maven 坐标引入：
+
+```
+com.dsh.packsync:packsync:1.0.0
+```
+
+包仓库地址：`https://maven.pkg.github.com/lanyunshijian/PackSync`
 
 ---
 

@@ -95,7 +95,11 @@ public class ServerConfig {
 
     public String nagMessage = "本服务器通过 PackSync 自动分发整合包。";
     public String nagClickableMessage = "点此获取 PackSync";
-    public String nagClickableLink = "https://modrinth.com/mod/";
+    /**
+     * 聊天提示里的可点击下载地址。默认指向本项目的 GitHub Release 页，
+     * 玩家点开即可下载最新版本的 zip（无需登录）。
+     */
+    public String nagClickableLink = "https://github.com/lanyunshijian/PackSync/releases/latest";
 
     // ── 网络 ──────────────────────────────────────────────────────────────
 
