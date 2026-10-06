@@ -1,13 +1,16 @@
-name: Publish Package
+name: Build and Publish
 
-# 构建并把 jar 发布到 GitHub Packages（Maven registry）：
-# https://github.com/lanyunshijian/PackSync/packages
+# 推送到 main：只构建 + 存档 jar。
+# 打 tag（v*）或手动 Run workflow：额外把 jar 发布到 GitHub Packages
+# （Maven registry，https://github.com/lanyunshijian/PackSync/packages）。
 #
-# 触发方式：推送到 main，或在 Actions 页面手动 Run workflow。
+# 为什么按 tag 区分：GitHub Packages 不接受同一坐标重复发布（会返回 409），
+# 若每次 push 都发布，main 上的日常构建就会一直红。
 
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   workflow_dispatch:
 
 jobs:
@@ -31,8 +34,13 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build and publish
-        run: ./gradlew build publish --no-daemon --console=plain
+      - name: Build
+        run: ./gradlew build --no-daemon --console=plain
+
+      - name: Publish to GitHub Packages
+        # 只在打 tag 或手动触发时发布；main 上的普通 push 不重复发布，否则同坐标会撞 409。
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        run: ./gradlew publish --no-daemon --console=plain
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
@@ -40,6 +48,6 @@ jobs:
       - name: Upload jar as build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: packsync-${{ github.sha }}
+          name: packsync-jar
           path: build/libs/*.jar
           if-no-files-found: error
