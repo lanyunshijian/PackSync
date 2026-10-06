@@ -1,0 +1,43 @@
+# ---- Gradle ----
+.gradle/
+build/
+mcmodsrepo/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ---- Forge 运行目录（客户端/服务端联调时生成） ----
+run/
+run-client/
+run-data/
+logs/
+crash-reports/
+
+# ---- 服务端运行期生成的密钥与整合包清单（绝不应入库） ----
+# 注意：必须锚定根目录，否则会连 src/**/packsync/ 源码包一起忽略掉。
+/modpack-keys/
+/modpacks/
+/packsync/
+server.properties
+eula.txt
+banned-*.json
+ops.json
+whitelist.json
+usercache.json
+
+# ---- IDE ----
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+out/
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~

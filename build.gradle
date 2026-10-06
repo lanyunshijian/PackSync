@@ -1,0 +1,285 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    // 生成 mixin refmap。必需：我们要注入的是 MC 自己的方法
+    // （如 ClientHandshakePacketListenerImpl.handleCustomQuery），它们在 SRG 下被改名，
+    // 没有 refmap 就只能写死 SRG 名，开发环境会失效。
+    id 'org.spongepowered.mixin' version '0.7.+'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
+
+minecraft {
+    mappings channel: mapping_channel, version: mapping_version
+    copyIdeResources = true
+
+    // 启动期 locator 需要真实的 mods 目录扫描，因此保留 server / client 运行配置。
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        client {
+            // 独立目录：做「客户端 + 服务端」联调时两个实例同时存在，
+            // 共用 run/ 会让 mods、日志、配置互相打架。
+            workingDirectory project.file('run-client')
+            property 'forge.enabledGameTestNamespaces', mod_id
+            jvmArgs '-Xmx1100m', '-Xms384m'
+        }
+
+        server {
+            property 'forge.enabledGameTestNamespaces', mod_id
+            args '--nogui'
+            jvmArgs '-Xmx900m', '-Xms384m'
+        }
+
+        gameTestServer {
+            property 'forge.enabledGameTestNamespaces', mod_id
+        }
+
+        data {
+            workingDirectory project.file('run-data')
+            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+// ============================================================================
+// 内层（游戏内）jar。
+//
+// 为什么必须两层：Forge 不允许同一个 jar 同时作为「locator 提供者模块」与
+// 「游戏内 mod 模块」—— 实测会抛
+//   java.lang.module.ResolutionException: Module forge reads more than one module named packsync
+// 所以外层（src/main，模块名 packsync）只放 locator 与平台无关核心，
+// 游戏内部分打成独立模块（packsync_mod）再由 locator 通过 jar-in-jar 装载。
+// ============================================================================
+sourceSets {
+    mod {
+        java.srcDirs = ['src/mod/java']
+        resources.srcDirs = ['src/mod/resources']
+        // 只取 main 的 **class 输出目录**，不要整个 output ——
+        // 后者包含 processResources 的产物，会让
+        // processResources -> modJar -> compileModJava -> classes 形成循环依赖。
+        compileClasspath += sourceSets.main.output.classesDirs
+        runtimeClasspath += sourceSets.main.output.classesDirs
+    }
+}
+
+configurations {
+    modImplementation.extendsFrom implementation
+    modCompileOnly.extendsFrom compileOnly
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // ★ Mixin 注解处理器 —— refmap 就是它在编译期生成的。缺了它，mixin 源码里
+    //   就【只能写死 SRG 名】（如 m_9933_），而 SRG 名无法在开发环境验证，
+    //   等于靠猜。本 mod 为此连栽三个跟头：把 int 字段 f_10020_ 当成 tick() 方法、
+    //   把 @Accessor 当安全 API、登录期取不到 ServerData。
+    //   有了 refmap，源码就能写 MCP 名（tick / handleCustomQuery），构建期自动映射 ——
+    //   这也是通行的做法：运行时映射表由构建期生成，源码里写 MCP 名
+    //   （如 "tick"），编译时自动映射成 SRG 名。
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    modAnnotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    // 内层要 import 外层的 core / crypto 类，因此编译期需要外层的 class 输出。
+    modImplementation sourceSets.main.output.classesDirs
+
+    // 核心层（配置 / 清单 / 加密 / 传输）刻意零 MC 依赖，
+    // 用普通 JUnit 直接验证，不需要启动游戏。
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'com.google.code.gson:gson:2.10.1'
+    testImplementation 'org.slf4j:slf4j-simple:2.0.13'
+}
+
+// 打好内层 jar。
+//
+// 内层会引用 MC 类（事件、命令、界面），因此**必须 reobf**：
+// 编译期用的是 official(Mojang) 名，运行时是 SRG 名，不做转换就会 NoSuchMethodError。
+tasks.register('modJar', Jar) {
+    dependsOn tasks.named('modClasses')
+    archiveFileName = 'packsync-mod.jar'
+    destinationDirectory = layout.buildDirectory.dir('modjar')
+    from sourceSets.mod.output
+    manifest {
+        attributes([
+                'Specification-Title'   : "${mod_id}-mod",
+                'Implementation-Title'  : "${mod_id}-mod",
+                'Implementation-Version': mod_version,
+                // Forge 有两条发现 mixin 配置的路径：mods.toml 的 [[mixins]]
+                // 与 MANIFEST 的 MixinConfigs。两条都写上 —— 实测只靠 mods.toml
+                // 时（内层经自定义 IDependencyLocator 以 jar-in-jar 方式装载）
+                // 配置没被加载，日志里连一条 mixin 处理记录都没有。
+                'MixinConfigs'          : 'packsync.mixins.json'
+        ])
+    }
+}
+
+reobf {
+    modJar {}
+}
+
+// refmap 的目标 sourceSet 是内层（游戏内代码都在那里）
+mixin {
+    add sourceSets.mod, 'packsync.refmap.json'
+    config 'packsync.mixins.json'
+}
+
+// 内层 mods.toml 的 ${...} 占位符同样要在构建期展开。
+tasks.named('processModResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            forge_version          : forge_version,
+            forge_version_range    : forge_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/mods.toml']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+        exceptionFormat 'full'
+        showStandardStreams = true
+    }
+    // 把 -Dpacksync.* 透传给测试 JVM：LiveServerE2ETest 靠它决定要不要
+    // 去连一个真实运行中的服务端（默认不带就是跳过）。
+    System.getProperties().forEach { k, v ->
+        String key = k.toString()
+        if (key.startsWith('packsync.')) {
+            systemProperty key, v.toString()
+        }
+    }
+}
+
+// mods.toml / mixins.json 里的 ${...} 占位符在构建期展开。
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            forge_version          : forge_version,
+            forge_version_range    : forge_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+
+    // 内层配置也需要展开（modId=packsync_mod 的 mods.toml 在 src/mod/resources）。
+    // 注意依赖的是 reobf 后的产物 —— 未 reobf 的内层在运行时找不到 MC 方法。
+    inputs.files(tasks.named('reobfModJar'))
+
+    filesMatching(['META-INF/mods.toml']) {
+        expand replaceProperties + [project: project]
+    }
+
+    // ★ 把（已 reobf 的）内层 jar 嵌进外层，由 PackSyncModLoader 装载。
+    //   必须用 reobfModJar 的输出：内层引用了 MC 类，运行时是 SRG 名，
+    //   塞入未转换的版本会在启动时报 NoSuchMethodError。
+    from(layout.buildDirectory.dir('reobfModJar')) {
+        include 'output.jar'
+        rename 'output.jar', 'packsync-mod.jar'
+        into 'META-INF/packsync'
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+                'Specification-Title'     : mod_id,
+                'Specification-Vendor'    : mod_authors,
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.jar.archiveVersion,
+                'Implementation-Vendor'   : mod_authors,
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+    finalizedBy 'reobfJar'
+}
+
+// 发布到 GitHub Packages（Maven registry）。
+//
+// 包地址：https://maven.pkg.github.com/lanyunshijian/PackSync
+// 本地发布需要 GITHUB_TOKEN（需 packages:write 权限）；CI 里由 Actions 提供。
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifact jar
+            pom {
+                name = mod_name
+                description = mod_description
+                url = 'https://github.com/lanyunshijian/PackSync'
+                licenses {
+                    license {
+                        name = mod_license
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'lanyunshijian'
+                        name = '蓝韵诗笺'
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/lanyunshijian/PackSync')
+            credentials {
+                username = System.getenv('GITHUB_ACTOR') ?: project.findProperty('gpr.user')
+                password = System.getenv('GITHUB_TOKEN') ?: project.findProperty('gpr.key')
+            }
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

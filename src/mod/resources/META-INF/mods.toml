@@ -1,0 +1,33 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+
+[[mods]]
+modId="packsync_mod"
+version="${mod_version}"
+displayName="${mod_name}"
+authors="${mod_authors}"
+description='''${mod_description}'''
+
+# ============================================================================
+# 内层（游戏内）jar。
+#
+# 为什么要分成内外两层：Forge 的模块系统不允许**同一个 jar** 同时是
+# 「locator 提供者模块」和「游戏内 mod 模块」—— 实测会直接抛
+#   java.lang.module.ResolutionException: Module forge reads more than one module named packsync
+# 因此外层 jar（含 IModLocator，模块名 packsync）与内层 jar（模块名 packsync_mod）
+# 必须是两个不同模块名的文件，这是业内的通行结构。
+#
+# 本 mod 自身绝不成为连接障碍：IGNORE_ALL_VERSION 跳过 FML 的存在性/版本校验。
+displayTest="IGNORE_ALL_VERSION"
+
+# 注意：这里**不能**声明对外层 packsync 的依赖。
+# 外层 jar 提供了 IModLocator，因此不会被 Forge 注册成一个已安装的 mod
+# （实测报 "Mod packsync_mod requires packsync 1.0.0 or above / Currently, packsync is not installed"）。
+# 内层对 core / crypto 的类引用不依赖 mod 依赖声明 —— 两者在同一自动模块层里，
+# 运行期可见性由模块系统保证。
+
+# 同端口分流：把分发服务的 HTTP 流量从 MC 端口上分出来，
+# 这样部署时无需额外暴露端口。
+[[mixins]]
+config="packsync.mixins.json"
