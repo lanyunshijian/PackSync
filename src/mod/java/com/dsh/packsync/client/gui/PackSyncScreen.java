@@ -7,6 +7,7 @@ import com.dsh.packsync.core.config.DownloadMode;
 import com.dsh.packsync.core.transfer.PackClient;
 import com.dsh.packsync.core.util.Hashing;
 import com.dsh.packsync.core.util.PackPaths;
+import com.dsh.packsync.core.util.ServerAddressParser;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;

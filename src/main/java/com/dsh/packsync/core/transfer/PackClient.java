@@ -2,6 +2,7 @@ package com.dsh.packsync.core.transfer;
 
 import com.dsh.packsync.core.config.ConfigIO;
 import com.dsh.packsync.core.manifest.PackManifest;
+import com.dsh.packsync.core.util.ServerAddressParser;
 import com.dsh.packsync.crypto.AesGcm;
 import com.dsh.packsync.crypto.Bytes;
 import com.dsh.packsync.crypto.Ed25519Identity;
@@ -81,7 +82,10 @@ public final class PackClient implements AutoCloseable {
 
     public PackClient(String host, int port, byte[] psk, Ed25519Identity clientIdentity,
                       String expectedFingerprint) {
-        this.baseUrl = "http://" + host + ":" + port + PackServer.PREFIX;
+        // ★ 必须走 urlHost：IPv6 字面量在 URL 里要写成 [addr]，
+        //   直接 "http://" + host + ":" + port 会拼出非法 URL
+        //   （http://2409:...:88e8:25566/...）并抛 MalformedURLException。
+        this.baseUrl = "http://" + ServerAddressParser.urlHost(host) + ":" + port + PackServer.PREFIX;
         this.psk = psk;
         this.clientIdentity = clientIdentity;
         this.expectedFingerprint = (expectedFingerprint == null || expectedFingerprint.isBlank())
@@ -92,7 +96,8 @@ public final class PackClient implements AutoCloseable {
 
     /** 取服务端公开信息（不需要握手）。用于"连接前先看看这是哪台服务器"。 */
     public static ServerInfo fetchInfo(String host, int port, int timeoutMs) throws IOException {
-        URL url = URI.create("http://" + host + ":" + port + PackServer.PREFIX + "/info").toURL();
+        URL url = URI.create("http://" + ServerAddressParser.urlHost(host) + ":" + port
+                + PackServer.PREFIX + "/info").toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setConnectTimeout(timeoutMs);
         conn.setReadTimeout(timeoutMs);

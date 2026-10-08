@@ -1,5 +1,7 @@
 package com.dsh.packsync.core.config;
 
+import com.dsh.packsync.core.util.ServerAddressParser;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -148,8 +150,21 @@ public class ClientConfig {
         /** 上次同步时间戳（毫秒），仅用于展示与排障。 */
         public long lastSyncAt = 0L;
 
+        /**
+         * 规范化后的主机名。
+         *
+         * <p>历史配置里的 {@link #mcHost} 可能混进了 {@code ":端口"}：玩家用 IPv6 联机、
+         * 且服务端没下发对外地址时，旧版本会把 {@code host + ":" + port} 的结果整个当成
+         * host 存下来（{@code 2409:...:88e8:25565}）。拼 URL 时会直接抛
+         * {@code MalformedURLException}。这里统一清洗一次，老配置无需手工修。
+         */
+        public String resolvedHost() {
+            String h = ServerAddressParser.host(mcHost);
+            return (h == null || h.isBlank()) ? mcHost : h;
+        }
+
         public String key() {
-            return mcHost + ":" + mcPort;
+            return resolvedHost() + ":" + mcPort;
         }
 
         public boolean isUsable() {

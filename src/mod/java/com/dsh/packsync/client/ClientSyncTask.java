@@ -113,7 +113,7 @@ public final class ClientSyncTask {
             Ed25519Identity identity = loadOrCreateIdentity(paths);
             // 手动管理连接（不用 try-with-resources）：指纹不符时需要
             // 用核对后的新指纹【重建连接重试】，而 try-with-resources 的变量是 final。
-            PackClient client = new PackClient(entry.mcHost, port, null, identity, entry.fingerprint);
+            PackClient client = new PackClient(entry.resolvedHost(), port, null, identity, entry.fingerprint);
             try {
 
                 // ── 1. 握手（指纹不符时给玩家一次重新核对的机会）──────────
@@ -146,7 +146,7 @@ public final class ClientSyncTask {
                         } catch (Throwable ignored) {
                             // 关不掉也无妨，下面会建新的。
                         }
-                        client = new PackClient(entry.mcHost, port, null, identity, entry.fingerprint);
+                        client = new PackClient(entry.resolvedHost(), port, null, identity, entry.fingerprint);
                     } catch (PackClient.PskRequiredException e) {
                         PROGRESS.fail("服务器要求预共享密钥（PSK），请在客户端配置里填写后再试。");
                         return;

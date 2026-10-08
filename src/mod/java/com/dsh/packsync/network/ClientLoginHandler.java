@@ -106,7 +106,7 @@ public final class ClientLoginHandler {
             // 服务端没填对外地址时，就用玩家自己连的那个地址。
             String useHost = host;
             if (useHost == null || useHost.isBlank()) {
-                useHost = com.dsh.packsync.client.gui.ServerAddressParser.host(ip);
+                useHost = com.dsh.packsync.core.util.ServerAddressParser.host(ip);
             }
             if (useHost == null || useHost.isBlank()) {
                 // 连地址都拿不到，就构造不出服务器记录，启动期也没法再同步。
@@ -118,7 +118,7 @@ public final class ClientLoginHandler {
                 return true;
             }
 
-            int mcPort = com.dsh.packsync.client.gui.ServerAddressParser.port(ip, 25565);
+            int mcPort = com.dsh.packsync.core.util.ServerAddressParser.port(ip, 25565);
             ClientConfig.ServerEntry entry = config.installedServers
                     .computeIfAbsent(useHost + ":" + mcPort + "@" + port,
                             k -> new ClientConfig.ServerEntry());
@@ -278,7 +278,11 @@ public final class ClientLoginHandler {
     private static String serverIpOf(ClientHandshakePacketListenerImpl handler) {
         String remembered = packsync$targetHost;
         if (remembered != null && !remembered.isBlank()) {
-            return remembered + ":" + packsync$targetPort;
+            // ★ IPv6 必须写成 [addr]:port。直接 remembered + ":" + port 会产出
+            //   "2409:...:88e8:25565" —— 既不是合法 IPv6，也拆不出端口；
+            //   下游会把 ":25565" 并进 host，拼 URL 时 MalformedURLException。
+            return com.dsh.packsync.core.util.ServerAddressParser.urlHost(remembered)
+                    + ":" + packsync$targetPort;
         }
         try {
             Object sd = LoginConnectionAccess.fieldValueByTypeName(

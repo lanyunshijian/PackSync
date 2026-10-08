@@ -100,12 +100,12 @@ public final class Preload {
             return Outcome.skipped("服务器端口未知");
         }
 
-        System.out.println(TAG + "开始同步：" + entry.mcHost + ":" + entry.mcPort
+        System.out.println(TAG + "开始同步：" + entry.resolvedHost() + ":" + entry.mcPort
                 + "（下载方式：" + config.downloadMode().describe() + "）");
 
         Ed25519Identity clientIdentity = loadOrCreateClientIdentity(paths);
         byte[] psk = null; // TODO: 从配置读取 PSK（当前为 TOFU 模式）
-        try (PackClient client = new PackClient(entry.mcHost, port, psk, clientIdentity, entry.fingerprint)) {
+        try (PackClient client = new PackClient(entry.resolvedHost(), port, psk, clientIdentity, entry.fingerprint)) {
 
             Handshake.ServerInfo info;
             try {
