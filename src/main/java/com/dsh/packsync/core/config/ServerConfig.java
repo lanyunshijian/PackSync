@@ -106,7 +106,17 @@ public class ServerConfig {
     /** 绑定地址，留空 = 所有网卡。 */
     public String bindAddress = "";
 
-    /** 下载服务监听端口。<b>-1 = 复用 Minecraft 端口</b>（默认，无需额外端口转发）。 */
+    /**
+     * <b>分发服务监听哪个端口 —— 想固定"同步端口"就写这里。</b>
+     *
+     * <p>{@code > 0}：就用这个端口。这是唯一能把同步端口写死的方式。
+     *
+     * <p>{@code -1}（默认）：交给 {@link #reconcilePort}；它也是 {@code 0} 时，
+     * 回落到 {@code MC 端口 + 1}（MC 在 25565 → 分发服务在 25566）。
+     *
+     * <p>注意这里<b>不能</b>填 MC 端口本身 —— 那个口已被 Minecraft 占用，绑不上。
+     * 同步端口与游戏端口必然是两回事。
+     */
     public int bindPort = -1;
 
     /** 下发给客户端的对外地址（服务器在 NAT 后时填公网域名/IP）。 */
@@ -212,11 +222,6 @@ public class ServerConfig {
             }
         }
         return out;
-    }
-
-    /** 复用 MC 端口？ */
-    public boolean usesMinecraftPort() {
-        return bindPort == -1;
     }
 
     /**
