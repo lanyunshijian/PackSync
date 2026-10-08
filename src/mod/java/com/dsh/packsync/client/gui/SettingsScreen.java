@@ -7,20 +7,20 @@ import com.dsh.packsync.core.util.PackPaths;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * PackSync 设置屏：下载方式三选一 + 身份密钥校验开关 + 同步端口。
+ * PackSync 设置屏：下载方式三选一 + 身份密钥校验开关。
  *
  * <p>为什么要有这一屏：以前下载方式只能靠在主界面反复点一个按钮"循环切换"，
  * 玩家根本不知道有几种、当前是哪种、每种什么含义。密钥校验同理 —— 它是整条
  * 信任链唯一的锚点，关掉意味着"谁都能冒充你连的服务器"，这种事必须让玩家
  * <b>看见并明确选择</b>，而不是藏在配置文件里。
  *
- * <p>"同步端口"则相反：它是排障用的，正常部署根本不需要动，所以默认留空（自动），
- * 只在服务端没下发端口、或下发的端口连不通（防火墙/端口映射）时才需要手填。
+ * <p>这里<b>没有</b>"同步端口"选项，是刻意的：端口由服务端界定（服务端配置
+ * {@code bindPort} 决定监听哪个口，登录时把实际端口下发下来），客户端只管照用。
+ * 两端都能设的话，出问题时根本判断不出该信谁。
  *
  * <p>布局全部相对底部倒推、行数按可用高度算：MC 的 GUI 坐标是缩放后的逻辑尺寸，
  * 854×480 的窗口在 GUI scale = 2 时只有 427×240，写死坐标必然重叠。
@@ -37,9 +37,6 @@ public class SettingsScreen extends Screen {
     private Button[] modeButtons;
     private Button verifyButton;
     private Button strictButton;
-
-    /** 同步端口输入框；留空 = 自动。 */
-    private EditBox portBox;
 
     public SettingsScreen(Screen parent) {
         super(Component.literal("PackSync 设置"));
@@ -62,11 +59,6 @@ public class SettingsScreen extends Screen {
 
     private int secLabelY() {
         return modeFirstY() + 3 * 22 + 8;
-    }
-
-    /** 同步端口那一行（在"身份校验"两个按钮下面留出标题位）。 */
-    private int portY() {
-        return secLabelY() + 56;
     }
 
     /** 完成按钮固定在底部。 */
@@ -121,15 +113,6 @@ public class SettingsScreen extends Screen {
         }).bounds(centerX - w / 2, secLabelY() + 22, w, 20).build();
         addRenderableWidget(strictButton);
 
-        // ── 同步端口：留空 = 自动 ─────────────────────────────────────
-        portBox = new EditBox(this.font, centerX - w / 2, portY(), w, 20,
-                Component.literal("同步端口"));
-        portBox.setMaxLength(5);
-        portBox.setFilter(s -> s.isEmpty() || s.matches("\\d{1,5}"));
-        portBox.setValue(cfg.syncPortOverride > 0 ? String.valueOf(cfg.syncPortOverride) : "");
-        portBox.setHint(Component.literal("留空 = 自动（服务端下发，或用 MC 端口 + 1）"));
-        addRenderableWidget(portBox);
-
         // ── 完成（保存并返回）─────────────────────────────────────────
         addRenderableWidget(Button.builder(
                         Component.literal("完成").withStyle(ChatFormatting.GREEN),
@@ -145,7 +128,6 @@ public class SettingsScreen extends Screen {
         cfg.setDownloadMode(this.mode);
         cfg.verifyServerFingerprint = this.verifyFingerprint;
         cfg.strictFingerprint = this.strictFingerprint;
-        cfg.syncPortOverride = parsePort(portBox == null ? "" : portBox.getValue());
         ConfigIO.saveClient(PackPaths.workingDir().clientConfigFile(), cfg);
         if (this.minecraft != null) {
             this.minecraft.setScreen(parent);
@@ -219,17 +201,11 @@ public class SettingsScreen extends Screen {
                     Component.literal("身份校验").withStyle(ChatFormatting.YELLOW), centerX, secY, 0xFFFF55);
         }
 
-        if (portY() - 12 > secLabelY() + 42) {
-            graphics.drawCenteredString(this.font,
-                    Component.literal("同步端口").withStyle(ChatFormatting.YELLOW),
-                    centerX, portY() - 12, 0xFFFF55);
-        }
-
         // 底部提示：说明当前选择的后果
         int hintY = doneY() - 14;
-        if (hintY > portY() + 24) {
+        if (hintY > secLabelY() + 44) {
             String hint = this.verifyFingerprint
-                    ? "同步端口留空即自动；填错只影响同步，不影响进服"
+                    ? "同步端口由服务端决定，客户端无需配置"
                     : "⚠ 已关闭校验：任何人都可能冒充你连的服务器";
             graphics.drawCenteredString(this.font,
                     Component.literal(hint).withStyle(this.verifyFingerprint
@@ -240,23 +216,6 @@ public class SettingsScreen extends Screen {
 
     private static ClientConfig load() {
         return ConfigIO.loadClient(PackPaths.workingDir().clientConfigFile());
-    }
-
-    /** 空串或非法值一律当成 0（自动）。 */
-    private static int parsePort(String text) {
-        if (text == null) {
-            return 0;
-        }
-        String t = text.trim();
-        if (t.isEmpty()) {
-            return 0;
-        }
-        try {
-            int p = Integer.parseInt(t);
-            return (p >= 1 && p <= 65535) ? p : 0;
-        } catch (NumberFormatException e) {
-            return 0;
-        }
     }
 
     @Override

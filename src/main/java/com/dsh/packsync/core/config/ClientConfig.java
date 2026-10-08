@@ -47,19 +47,6 @@ public class ClientConfig {
      */
     public String downloadMode = DownloadMode.DEFAULT.name();
 
-    /**
-     * <b>手动指定同步（分发）端口。</b>
-     *
-     * <p>{@code 0} = 自动：优先用服务端下发的端口，没有下发则按 MC 端口 + 1 推断。
-     *
-     * <p>什么时候要手填：服务端没下发端口，或者下发的端口连不通
-     * （防火墙只放行了某个固定端口、中间有端口映射、同端口分流改成独立端口……）。
-     * 填上之后对所有服务器都用这个端口，改回 {@code 0} 即恢复自动。
-     *
-     * <p>填错不影响进服 —— 它只管整合包同步；进服走的是 MC 自己的端口。
-     */
-    public int syncPortOverride = 0;
-
     /** 下载后校验哈希。<b>强烈建议保持开启。</b> */
     public boolean verifyHashAfterDownload = true;
 
@@ -114,25 +101,28 @@ public class ClientConfig {
         if (downloadMode == null) {
             downloadMode = DownloadMode.DEFAULT.name();
         }
-        if (syncPortOverride != 0 && (syncPortOverride < 1 || syncPortOverride > 65535)) {
-            // 写坏了就退回自动：宁可让它自己去推断端口，也不要卡在一个非法端口上。
-            syncPortOverride = 0;
-        }
+        // 注：这里曾经有过 syncPortOverride（客户端自己指定同步端口），已删除。
+        // 端口由服务端界定 —— 两端都能设的话，出问题时根本判断不出该信谁。
+        // 旧配置里残留的该字段会被 Gson 直接忽略，不需要迁移代码。
         return this;
     }
 
     /**
      * 解析本次同步要连的端口。
      *
-     * <p>优先级：手动指定的 {@link #syncPortOverride} &gt; 服务端下发的
-     * {@link ServerEntry#port} &gt; MC 端口 + 1。
+     * <p><b>端口一律由服务端界定。</b>服务端在自己配置里决定分发服务监听哪个端口
+     * （{@code bindPort} / {@code reconcilePort}），登录时把<b>实际监听的端口</b>
+     * 下发给客户端，客户端只负责照用。这里刻意不提供任何"客户端覆盖"入口 ——
+     * 两端都能设的话，出问题时根本判断不出该信谁。
+     *
+     * <p>{@link ServerEntry#port} 就是服务端下发、并被记录下来的那个值。
+     *
+     * <p>只有一种情况会回落到推断：服务端当时没能下发（托管未运行、还没有清单），
+     * 此时按默认部署习惯用 {@code MC 端口 + 1}。
      *
      * @return 端口；{@code -1} 表示无从确定
      */
     public int resolveSyncPort(ServerEntry entry) {
-        if (syncPortOverride > 0) {
-            return syncPortOverride;
-        }
         if (entry != null) {
             if (entry.port > 0) {
                 return entry.port;
@@ -146,14 +136,11 @@ public class ClientConfig {
 
     /** 当前端口的来源说明，用于日志与界面提示。 */
     public String describeSyncPort(ServerEntry entry) {
-        if (syncPortOverride > 0) {
-            return syncPortOverride + "（手动指定）";
-        }
         if (entry != null && entry.port > 0) {
             return entry.port + "（服务端下发）";
         }
         if (entry != null && entry.mcPort > 0) {
-            return (entry.mcPort + 1) + "（MC 端口 + 1 推断）";
+            return (entry.mcPort + 1) + "（服务端未下发，按 MC 端口 + 1 推断）";
         }
         return "未知";
     }

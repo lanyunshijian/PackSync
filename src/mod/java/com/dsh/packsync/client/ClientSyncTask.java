@@ -112,8 +112,8 @@ public final class ClientSyncTask {
             if (port <= 0) {
                 PROGRESS.fail("无法确定同步端口。\n\n"
                         + "服务端没有下发分发端口，也没能从 MC 端口推断出来。\n"
-                        + "请在「设置」里手动填写同步端口（对应配置文件 "
-                        + "config/packsync-client.json 的 syncPortOverride）。");
+                        + "端口由服务端决定 —— 请让管理员确认服务端已正常启动分发服务"
+                        + "（服务端配置 bindPort / reconcilePort），再重试。");
                 return;
             }
 

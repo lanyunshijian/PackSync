@@ -6,14 +6,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
- * 同步端口的解析与配置读写。
+ * 同步端口的解析。
  *
- * <p>端口的来源有三个，优先级必须稳定：手动指定 &gt; 服务端下发 &gt; MC 端口 + 1。
- * 这条链一旦搞错，表现是"同步连到一个没人监听的端口"，而<b>进服完全正常</b> ——
- * 玩家很难自己看出问题出在哪。
+ * <p>端口由<b>服务端</b>界定：服务端决定分发服务监听哪个口，登录时把实际端口下发下来，
+ * 客户端照着用。这里钉死两件事：
+ * <ol>
+ *   <li>有服务端下发的端口时一律用它 —— 客户端没有第二个来源；</li>
+ *   <li>服务端没下发时才回落到 {@code MC 端口 + 1}（默认部署的约定）；
+ *       再拿不到就返回 -1，绝不瞎猜一个端口。</li>
+ * </ol>
  */
 class ClientConfigPortTest {
 
@@ -27,79 +31,42 @@ class ClientConfigPortTest {
     }
 
     @Test
-    @DisplayName("★ 优先用手动指定的端口")
-    void overrideWins() {
-        ClientConfig cfg = new ClientConfig();
-        cfg.syncPortOverride = 30000;
-        assertEquals(30000, cfg.resolveSyncPort(entry(25566, 25565)));
-    }
-
-    @Test
-    @DisplayName("没手动指定时用服务端下发的端口")
-    void serverPort() {
+    @DisplayName("★ 有服务端下发的端口就用它")
+    void serverPortWins() {
         ClientConfig cfg = new ClientConfig();
         assertEquals(25566, cfg.resolveSyncPort(entry(25566, 25565)));
+        assertEquals("25566（服务端下发）", cfg.describeSyncPort(entry(25566, 25565)));
     }
 
     @Test
-    @DisplayName("服务端没下发时按 MC 端口 + 1 推断")
+    @DisplayName("服务端没下发时按 MC 端口 + 1 推断（默认部署的约定）")
     void fallbackMcPlusOne() {
         ClientConfig cfg = new ClientConfig();
         assertEquals(25566, cfg.resolveSyncPort(entry(-1, 25565)));
         assertEquals(25566, cfg.resolveSyncPort(entry(0, 25565)));
+        assertEquals("25566（服务端未下发，按 MC 端口 + 1 推断）", cfg.describeSyncPort(entry(-1, 25565)));
     }
 
     @Test
-    @DisplayName("什么都拿不到时返回 -1，而不是瞎猜一个端口")
+    @DisplayName("什么都拿不到时返回 -1，而不是瞎猜")
     void unknown() {
         ClientConfig cfg = new ClientConfig();
         assertEquals(-1, cfg.resolveSyncPort(null));
         assertEquals(-1, cfg.resolveSyncPort(entry(-1, -1)));
-    }
-
-    @Test
-    @DisplayName("非法的 syncPortOverride 在 normalize 时被清成 0（自动）")
-    void normalizeRejectsBadOverride() {
-        ClientConfig a = new ClientConfig();
-        a.syncPortOverride = 70000;
-        assertEquals(0, a.normalize().syncPortOverride);
-
-        ClientConfig b = new ClientConfig();
-        b.syncPortOverride = -5;
-        assertEquals(0, b.normalize().syncPortOverride);
-
-        ClientConfig c = new ClientConfig();
-        c.syncPortOverride = 25566;
-        assertEquals(25566, c.normalize().syncPortOverride);
-    }
-
-    @Test
-    @DisplayName("端口来源说明与优先级一致")
-    void describe() {
-        ClientConfig cfg = new ClientConfig();
-        assertEquals("25566（服务端下发）", cfg.describeSyncPort(entry(25566, 25565)));
-        assertEquals("25566（MC 端口 + 1 推断）", cfg.describeSyncPort(entry(-1, 25565)));
         assertEquals("未知", cfg.describeSyncPort(null));
-        cfg.syncPortOverride = 30000;
-        assertEquals("30000（手动指定）", cfg.describeSyncPort(entry(25566, 25565)));
-        assertEquals("30000（手动指定）", cfg.describeSyncPort(null),
-                "手动指定时，与有没有服务器记录无关");
     }
 
     @Test
-    @DisplayName("JSON 往返不丢 syncPortOverride；老配置缺这一项时回落 0")
-    void jsonRoundTrip() {
-        ClientConfig cfg = new ClientConfig();
-        cfg.syncPortOverride = 25580;
-        String json = ConfigIO.gson().toJson(cfg);
-        assertTrue(json.contains("syncPortOverride"), "新字段必须出现在落盘 JSON 里");
-
-        ClientConfig back = ConfigIO.gson().fromJson(json, ClientConfig.class).normalize();
-        assertEquals(25580, back.syncPortOverride);
-
-        // 模拟旧版本写下的配置：完全没有 syncPortOverride 这一项
-        String legacy = "{\"configVersion\":1,\"downloadMode\":\"SERVER_ONLY\"}";
-        ClientConfig old = ConfigIO.gson().fromJson(legacy, ClientConfig.class).normalize();
-        assertEquals(0, old.syncPortOverride, "老配置必须回落到自动");
+    @DisplayName("★ 客户端不再有自己的端口配置：旧配置里的 syncPortOverride 必须被忽略")
+    void clientOverrideIsGone() {
+        String legacy = "{\"configVersion\":1,\"syncPortOverride\":30000,"
+                + "\"installedServers\":{\"a@25566\":{\"host\":\"example.com\",\"port\":25566,"
+                + "\"mcHost\":\"example.com\",\"mcPort\":25565}}}";
+        ClientConfig cfg = ConfigIO.gson().fromJson(legacy, ClientConfig.class).normalize();
+        // 老配置里的残留值不得影响解析结果 —— 仍然以服务端下发的 25566 为准
+        assertEquals(25566, cfg.resolveSyncPort(cfg.installedServers.get("a@25566")));
+        // 重新落盘时也不该再写出这个字段
+        String out = ConfigIO.gson().toJson(cfg);
+        assertFalse(out.contains("syncPortOverride"), "已废弃的字段不应再出现在新配置里");
     }
 }

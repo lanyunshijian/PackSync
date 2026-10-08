@@ -13,13 +13,13 @@
 
 **https://github.com/lanyunshijian/PackSync/releases/latest**
 
-下载 `packsync-x.y.z.zip` 并解压，里面就是 `packsync-1.0.0.jar`（客户端与服务端通用），
+下载 `packsync-x.y.z.zip` 并解压，里面就是 `packsync-1.0.1.jar`（客户端与服务端通用），
 丢进 `mods/` 目录即可。
 
 也可以直接用 Maven 坐标引入：
 
 ```
-com.dsh.packsync:packsync:1.0.0
+com.dsh.packsync:packsync:1.0.1
 ```
 
 包仓库地址：`https://maven.pkg.github.com/lanyunshijian/PackSync`
@@ -85,7 +85,7 @@ PackSync 把这个过程搬到**登录握手阶段**：客户端还没进世界�
 ./gradlew build
 ```
 
-产物：`build/libs/packsync-1.0.0.jar`。
+产物：`build/libs/packsync-1.0.1.jar`。
 
 跑单元测试（核心层零 MC 依赖，不需要启动游戏）：
 
@@ -102,7 +102,7 @@ PackSync 把这个过程搬到**登录握手阶段**：客户端还没进世界�
 
 ### 服务端
 
-1. 把 `packsync-1.0.0.jar` 丢进服务端的 `mods/` 目录。
+1. 把 `packsync-1.0.1.jar` 丢进服务端的 `mods/` 目录。
 2. 启动一次服务器 —— 会在根目录生成 `packsync/server.json` 与 `modpack-keys/`。
 3. 按需编辑 `packsync/server.json`（要同步哪些目录、走哪种分发方式等），
    然后 `/packsync reload` 或重启。
@@ -111,7 +111,7 @@ PackSync 把这个过程搬到**登录握手阶段**：客户端还没进世界�
 
 ### 客户端
 
-1. 把 `packsync-1.0.0.jar` 丢进客户端的 `mods/` 目录。
+1. 把 `packsync-1.0.1.jar` 丢进客户端的 `mods/` 目录。
 2. 连接服务器。若本地没有该服务器的可信指纹记录，会**强制弹出指纹输入界面**。
 3. 从服主那里拿到指纹，粘贴进去（支持整段粘贴，会自动提取）→ 验证通过后才开始下载。
 4. 下载完成后按提示重启游戏，即与服务端一致。

@@ -112,7 +112,16 @@ public class ServerConfig {
     /** 下发给客户端的对外地址（服务器在 NAT 后时填公网域名/IP）。 */
     public String addressToSend = "";
 
-    /** 下发给客户端的对外端口，-1 = 与 MC 端口相同。 */
+    /**
+     * <b>下发给客户端的对外端口。</b>
+     *
+     * <p>{@code -1}（默认）= 下发分发服务<b>实际监听的端口</b>。服务端自己最清楚
+     * 它在听哪个口，绝大多数部署都该用这个默认值，客户端不需要也不应该去猜。
+     *
+     * <p>只有"服务器在端口映射 / NAT 后面，内部监听端口与外部可达端口不一致"时才填：
+     * 例如内部监听 25566、路由器把公网 30000 映射到它，客户端要连的是 30000，
+     * 这里就填 30000。
+     */
     public int portToSend = -1;
 
     /**
@@ -208,5 +217,20 @@ public class ServerConfig {
     /** 复用 MC 端口？ */
     public boolean usesMinecraftPort() {
         return bindPort == -1;
+    }
+
+    /**
+     * 决定"告诉客户端该连哪个端口"。
+     *
+     * <p>默认（{@code portToSend <= 0}）就下发分发服务<b>实际监听的端口</b> ——
+     * 服务端自己最清楚它在听哪个口，客户端不需要也不应该去猜。
+     *
+     * <p>只有服务器处在端口映射 / NAT 之后、内部监听端口与外部可达端口不一致时，
+     * 才由 {@link #portToSend} 覆盖。
+     *
+     * @param actualListeningPort 分发服务实际监听的端口
+     */
+    public int advertisedPort(int actualListeningPort) {
+        return portToSend > 0 ? portToSend : actualListeningPort;
     }
 }

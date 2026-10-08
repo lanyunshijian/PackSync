@@ -358,7 +358,9 @@ public final class PackSyncHost {
             String host = config == null || config.addressToSend == null || config.addressToSend.isBlank()
                     ? ""                       // 留空 = 客户端沿用自己连 MC 用的主机名
                     : config.addressToSend;
-            int port = server.port();
+            // 端口由服务端界定：默认下发分发服务【实际监听】的端口；
+            // 只有配了 portToSend（端口映射 / NAT 场景）时才用配置里的对外端口。
+            int port = config == null ? server.port() : config.advertisedPort(server.port());
             return new PackSyncPresence.ServerInfoMsg(
                     host,
                     port,
