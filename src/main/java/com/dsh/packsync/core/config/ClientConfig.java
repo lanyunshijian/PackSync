@@ -47,6 +47,16 @@ public class ClientConfig {
      */
     public String downloadMode = DownloadMode.DEFAULT.name();
 
+    /**
+     * <b>游戏内提示里显示的名字。</b>
+     *
+     * <p>聊天里的提示会长这样：{@code [PackSync] 整合包「服务器」已安装……}。
+     * 想换成别的名字（自建整合包、换个称呼）改这里即可，不必碰代码。
+     *
+     * <p>只影响客户端本地的提示文字，不影响任何协议、文件名或 modId。
+     */
+    public String noticePrefix = "PackSync";
+
     /** 下载后校验哈希。<b>强烈建议保持开启。</b> */
     public boolean verifyHashAfterDownload = true;
 
@@ -100,6 +110,10 @@ public class ClientConfig {
         }
         if (downloadMode == null) {
             downloadMode = DownloadMode.DEFAULT.name();
+        }
+        if (noticePrefix == null || noticePrefix.isBlank()) {
+            // 空名字会让提示变成 "[] xxx"，不如回落到默认。
+            noticePrefix = "PackSync";
         }
         // 注：这里曾经有过 syncPortOverride（客户端自己指定同步端口），已删除。
         // 端口由服务端界定 —— 两端都能设的话，出问题时根本判断不出该信谁。

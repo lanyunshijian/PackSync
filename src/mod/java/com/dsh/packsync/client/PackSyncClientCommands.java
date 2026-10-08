@@ -70,11 +70,11 @@ public final class PackSyncClientCommands {
             String modpackName = ConfigIO.loadClient(paths.clientConfigFile()).selectedModpack;
 
             if (modpackName == null || modpackName.isBlank()) {
-                tell(mc, "[PackSync] 还没记录任何整合包 —— 请先连一次服务器。", ChatFormatting.RED);
+                tell(mc, ServerInfoHandler.noticePrefix() + "还没记录任何整合包 —— 请先连一次服务器。", ChatFormatting.RED);
                 return 0;
             }
             if (!LocalManifest.exists(paths, modpackName)) {
-                tell(mc, "[PackSync] 本地没有整合包「" + modpackName + "」的清单，无法比对。", ChatFormatting.RED);
+                tell(mc, ServerInfoHandler.noticePrefix() + "本地没有整合包「" + modpackName + "」的清单，无法比对。", ChatFormatting.RED);
                 tell(mc, "  连一次服务器让它同步下来，之后再敲这条指令即可。", ChatFormatting.GRAY);
                 return 0;
             }
@@ -83,7 +83,7 @@ public final class PackSyncClientCommands {
                     paths.modpackDir(modpackName).resolve(paths.manifestFile().getFileName()),
                     PackManifest.class);
             if (manifest == null || manifest.files() == null) {
-                tell(mc, "[PackSync] 清单读取失败（文件可能损坏）。", ChatFormatting.RED);
+                tell(mc, ServerInfoHandler.noticePrefix() + "清单读取失败（文件可能损坏）。", ChatFormatting.RED);
                 return 0;
             }
 
@@ -131,7 +131,7 @@ public final class PackSyncClientCommands {
             int checked = expected.size();
             int ok = checked - missing.size() - sizeMismatch.size();
 
-            tell(mc, "[PackSync] 校验整合包「" + modpackName + "」：共 " + checked + " 个文件", ChatFormatting.WHITE);
+            tell(mc, ServerInfoHandler.noticePrefix() + "校验整合包「" + modpackName + "」：共 " + checked + " 个文件", ChatFormatting.WHITE);
             if (missing.isEmpty() && sizeMismatch.isEmpty()) {
                 tell(mc, "  ✓ 全部就位（" + ok + " / " + checked + "）", ChatFormatting.GREEN);
             } else {
@@ -145,13 +145,14 @@ public final class PackSyncClientCommands {
                         extra, ChatFormatting.GRAY);
             }
             if (!missing.isEmpty() || !sizeMismatch.isEmpty()) {
-                tell(mc, "  修法：连一次服务器让 PackSync 自动补齐，或点主界面的「同步已记录的服务器」。",
+                tell(mc, "  修法：连一次服务器让 " + ServerInfoHandler.noticePrefix().trim()
+                                + " 自动补齐，或点主界面的「同步已记录的服务器」。",
                         ChatFormatting.YELLOW);
             }
             return 1;
         } catch (Throwable t) {
             PackSync.LOGGER.error("[PackSync] 校验失败", t);
-            tell(mc, "[PackSync] 校验出错：" + t, ChatFormatting.RED);
+            tell(mc, ServerInfoHandler.noticePrefix() + "校验出错：" + t, ChatFormatting.RED);
             return 0;
         }
     }

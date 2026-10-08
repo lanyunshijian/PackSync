@@ -123,10 +123,11 @@ public final class PackSyncPresence {
 
             // ★ 不再有 disconnect —— 只提示，不影响玩家进服。
             if (config.nagMissingClients) {
-                String msg = config.requireClientMod
-                        ? "本服务器建议安装 PackSync 以自动同步整合包（不装也能玩，但 mod 可能不匹配）。"
-                        : config.nagMessage;
-                player.sendSystemMessage(Component.literal(msg)
+                // 文案一律取自配置的 nagMessage。
+                // 这里曾经按 requireClientMod 分成「硬编码文案 / 配置文案」两支，
+                // 结果是管理员改了 nagMessage 却看不到效果 —— 提示语里出现的模组名
+                // 也就无从更改。现在完全由配置决定。
+                player.sendSystemMessage(Component.literal(config.nagMessage)
                         .withStyle(ChatFormatting.YELLOW));
                 Component clickable = Component.literal(config.nagClickableMessage)
                         .withStyle(style -> style

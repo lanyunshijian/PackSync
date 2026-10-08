@@ -149,12 +149,32 @@ public final class ServerInfoHandler {
         });
     }
 
+    /**
+     * 游戏内提示前缀，形如 {@code "[PackSync] "}。
+     *
+     * <p>名字取自客户端配置的 {@code noticePrefix}，可在 {@code config/packsync-client.json}
+     * 里直接改 —— 换个自称、给自建整合包品牌化，都不必碰代码。
+     *
+     * <p>读不到配置时回落到默认，绝不因为一个显示名把提示吞掉。
+     */
+    public static String noticePrefix() {
+        try {
+            com.dsh.packsync.core.config.ClientConfig cfg =
+                    com.dsh.packsync.core.config.ConfigIO.loadClient(
+                            com.dsh.packsync.core.util.PackPaths.workingDir().clientConfigFile());
+            String p = cfg.noticePrefix;
+            return (p == null || p.isBlank()) ? "[PackSync] " : ("[" + p + "] ");
+        } catch (Throwable t) {
+            return "[PackSync] ";
+        }
+    }
+
     private static void tell(Minecraft mc, String text) {
         mc.execute(() -> {
             try {
                 if (mc.player != null) {
                     mc.player.displayClientMessage(
-                            Component.literal("[PackSync] " + text).withStyle(ChatFormatting.GREEN),
+                            Component.literal(noticePrefix() + text).withStyle(ChatFormatting.GREEN),
                             false);
                 }
             } catch (Throwable ignored) {

@@ -4,7 +4,7 @@
 服务端发布整合包，客户端在**进入游戏之前**自动把本地内容同步一致。
 
 - 适配：Minecraft **1.20.1** / Forge **47.x**
-- 当前版本：**1.0.1**
+- 当前版本：**1.0.2**
 - 作者：**蓝韵诗笺**
 - 许可：MIT
 
@@ -14,13 +14,13 @@
 
 **https://github.com/lanyunshijian/PackSync/releases/latest**
 
-下载 `packsync-x.y.z.zip` 并解压，里面就是 `packsync-1.0.1.jar`（客户端与服务端通用），
+下载 `packsync-x.y.z.zip` 并解压，里面就是 `packsync-1.0.2.jar`（客户端与服务端通用），
 丢进 `mods/` 目录即可。
 
 也可以直接用 Maven 坐标引入：
 
 ```
-com.dsh.packsync:packsync:1.0.1
+com.dsh.packsync:packsync:1.0.2
 ```
 
 包仓库地址：`https://maven.pkg.github.com/lanyunshijian/PackSync`
@@ -125,7 +125,7 @@ MC 端口上收到 `/packsync/` 开头的 HTTP 请求会自动转给它（GET/PO
 ./gradlew build
 ```
 
-产物：`build/libs/packsync-1.0.1.jar`。
+产物：`build/libs/packsync-1.0.2.jar`。
 
 跑单元测试（核心层零 MC 依赖，不需要启动游戏）：
 
@@ -142,7 +142,7 @@ MC 端口上收到 `/packsync/` 开头的 HTTP 请求会自动转给它（GET/PO
 
 ### 服务端
 
-1. 把 `packsync-1.0.1.jar` 丢进服务端的 `mods/` 目录。
+1. 把 `packsync-1.0.2.jar` 丢进服务端的 `mods/` 目录。
 2. 启动一次服务器 —— 会生成 `config/packsync-server.json`，
    并在服务端根目录建出 `modpack-keys/`。
 3. 按需编辑 `config/packsync-server.json`（同步哪些目录、端口、下载提示语等），
@@ -152,7 +152,7 @@ MC 端口上收到 `/packsync/` 开头的 HTTP 请求会自动转给它（GET/PO
 
 ### 客户端
 
-1. 把 `packsync-1.0.1.jar` 丢进客户端的 `mods/` 目录。
+1. 把 `packsync-1.0.2.jar` 丢进客户端的 `mods/` 目录。
 2. 连接服务器。若本地没有该服务器的可信指纹记录，会**强制弹出指纹输入界面**。
 3. 从服主那里拿到指纹，粘贴进去（支持整段粘贴，会自动提取）→ 验证通过后才开始下载。
 4. 下载完成后按提示重启游戏，即与服务端一致。
@@ -161,7 +161,17 @@ MC 端口上收到 `/packsync/` 开头的 HTTP 请求会自动转给它（GET/PO
 
 ---
 
-## 1.0.1 修了什么
+## 更新记录
+
+### 1.0.2
+
+- **游戏内提示里显示的名字可配置** —— 聊天栏里的 `[PackSync] …` 现在取自客户端配置的
+  `noticePrefix`，想换自称、或给自建整合包做品牌，改配置即可，不用碰源码
+  （见 [使用说明 7.4 节](使用说明.md)）。
+- 修掉一处「改了配置看不到效果」：服务端给未安装玩家的提示，在 `requireClientMod = true`
+  时会走一段**硬编码文案**，配置里的 `nagMessage` 被完全忽略。现在一律以配置为准。
+
+### 1.0.1
 
 - **IPv6 联机时同步必然失败** —— 地址解析把端口并进了主机名
   （`2409:...:88e8:25565`），且拼 URL 时 IPv6 没加方括号，最终抛
