@@ -218,10 +218,6 @@ public class ClientConfig {
             return (h == null || h.isBlank()) ? mcHost : h;
         }
 
-        public String key() {
-            return resolvedHost() + ":" + mcPort;
-        }
-
         public boolean isUsable() {
             return mcHost != null && !mcHost.isBlank();
         }
