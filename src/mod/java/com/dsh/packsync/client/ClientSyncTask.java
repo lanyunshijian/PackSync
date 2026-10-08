@@ -108,7 +108,14 @@ public final class ClientSyncTask {
                         + "所以首次装包必须**先进界面同步、再进服务器**。");
                 return;
             }
-            int port = entry.port > 0 ? entry.port : entry.mcPort + 1;
+            int port = config.resolveSyncPort(entry);
+            if (port <= 0) {
+                PROGRESS.fail("无法确定同步端口。\n\n"
+                        + "服务端没有下发分发端口，也没能从 MC 端口推断出来。\n"
+                        + "请在「设置」里手动填写同步端口（对应配置文件 "
+                        + "config/packsync-client.json 的 syncPortOverride）。");
+                return;
+            }
 
             Ed25519Identity identity = loadOrCreateIdentity(paths);
             // 手动管理连接（不用 try-with-resources）：指纹不符时需要

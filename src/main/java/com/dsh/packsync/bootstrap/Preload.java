@@ -94,7 +94,7 @@ public final class Preload {
             return Outcome.skipped("尚未连接过任何服务器");
         }
 
-        int port = resolvePort(entry);
+        int port = resolvePort(config, entry);
         if (port <= 0) {
             System.out.println(TAG + "无法确定服务器端口，跳过启动期同步");
             return Outcome.skipped("服务器端口未知");
@@ -246,14 +246,14 @@ public final class Preload {
     }
 
     /** 下载服务端口：优先显式端口，其次 MC 端口 + 1（分发服务的默认约定）。 */
-    private static int resolvePort(ClientConfig.ServerEntry entry) {
-        if (entry.port > 0) {
-            return entry.port;
-        }
-        if (entry.mcPort > 0) {
-            return entry.mcPort + 1;
-        }
-        return -1;
+    /**
+     * 解析本次同步要连的端口。
+     *
+     * <p>规则集中在 {@link ClientConfig#resolveSyncPort}：启动期与游戏内两条路径
+     * 各写一份的话，改一处漏一处，端口就会在两个入口表现不一致。
+     */
+    private static int resolvePort(ClientConfig config, ClientConfig.ServerEntry entry) {
+        return config.resolveSyncPort(entry);
     }
 
     /** 按配置构造公共源（SERVER_ONLY 时其实是空的 —— prefetch 会直接跳过）。 */

@@ -47,6 +47,19 @@ public class ClientConfig {
      */
     public String downloadMode = DownloadMode.DEFAULT.name();
 
+    /**
+     * <b>手动指定同步（分发）端口。</b>
+     *
+     * <p>{@code 0} = 自动：优先用服务端下发的端口，没有下发则按 MC 端口 + 1 推断。
+     *
+     * <p>什么时候要手填：服务端没下发端口，或者下发的端口连不通
+     * （防火墙只放行了某个固定端口、中间有端口映射、同端口分流改成独立端口……）。
+     * 填上之后对所有服务器都用这个端口，改回 {@code 0} 即恢复自动。
+     *
+     * <p>填错不影响进服 —— 它只管整合包同步；进服走的是 MC 自己的端口。
+     */
+    public int syncPortOverride = 0;
+
     /** 下载后校验哈希。<b>强烈建议保持开启。</b> */
     public boolean verifyHashAfterDownload = true;
 
@@ -101,7 +114,48 @@ public class ClientConfig {
         if (downloadMode == null) {
             downloadMode = DownloadMode.DEFAULT.name();
         }
+        if (syncPortOverride != 0 && (syncPortOverride < 1 || syncPortOverride > 65535)) {
+            // 写坏了就退回自动：宁可让它自己去推断端口，也不要卡在一个非法端口上。
+            syncPortOverride = 0;
+        }
         return this;
+    }
+
+    /**
+     * 解析本次同步要连的端口。
+     *
+     * <p>优先级：手动指定的 {@link #syncPortOverride} &gt; 服务端下发的
+     * {@link ServerEntry#port} &gt; MC 端口 + 1。
+     *
+     * @return 端口；{@code -1} 表示无从确定
+     */
+    public int resolveSyncPort(ServerEntry entry) {
+        if (syncPortOverride > 0) {
+            return syncPortOverride;
+        }
+        if (entry != null) {
+            if (entry.port > 0) {
+                return entry.port;
+            }
+            if (entry.mcPort > 0) {
+                return entry.mcPort + 1;
+            }
+        }
+        return -1;
+    }
+
+    /** 当前端口的来源说明，用于日志与界面提示。 */
+    public String describeSyncPort(ServerEntry entry) {
+        if (syncPortOverride > 0) {
+            return syncPortOverride + "（手动指定）";
+        }
+        if (entry != null && entry.port > 0) {
+            return entry.port + "（服务端下发）";
+        }
+        if (entry != null && entry.mcPort > 0) {
+            return (entry.mcPort + 1) + "（MC 端口 + 1 推断）";
+        }
+        return "未知";
     }
 
     /** 本机记住的、用于启动期同步的服务器条目。 */
